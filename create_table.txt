@@ -1,0 +1,26 @@
+create table if not exists teams ( 
+	id INTEGER primary key,
+	name varchar,
+	coach varchar
+);
+
+
+CREATE TABLE if not exists standings(
+   team_id INTEGER,
+   score INTEGER,
+   PRIMARY KEY(team_id),
+   CONSTRAINT fk_team
+      FOREIGN KEY(team_id) 
+	  REFERENCES teams(id)
+);
+
+create TABLE if not exists standing_logs(
+	team_id INTEGER,
+	score INTEGER,
+	date DATE,
+	primary key(date, team_id),
+	CONSTRAINT fk_team
+      FOREIGN KEY(team_id) 
+	  REFERENCES teams(id)
+	
+);
