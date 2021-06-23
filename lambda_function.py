@@ -29,7 +29,7 @@ def connect(cmd):
         # https://stackoverflow.com/questions/50279896/postgresql-not-inserting-in-python-on-aws-lambda-with-psycopg2/50280452
         conn.commit()
 
-        return cur.fetchone()
+        return cur.fetchall()
 	# close the communication with the PostgreSQL
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
