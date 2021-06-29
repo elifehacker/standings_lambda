@@ -1,6 +1,7 @@
 import json
 import psycopg2
 from config import config
+from datetime import datetime
 
 def connect(cmd):
     """ Connect to the PostgreSQL database server """
@@ -39,10 +40,59 @@ def connect(cmd):
             conn.close()
             print('Database connection closed.')
 
+def connect_log(sid, score, date_time_str):
+    """ Connect to the PostgreSQL database server """
+    conn = None
+    try:
+        # read connection parameters
+        params = config()
+
+        # connect to the PostgreSQL server
+        print('Connecting to the PostgreSQL database...')
+        conn = psycopg2.connect(**params)
+		
+        # create a cursor
+        cur = conn.cursor()
+        date_time_obj = datetime.strptime(date_time_str, '%d/%m/%y %H:%M:%S')
+	# execute a statement
+        cur.execute("""INSERT INTO standing_logs (team_id, score, date) VALUES (%s, %s, %s);""",(sid, score, date_time_obj))
+        conn.commit()
+
+        return cur.fetchall()
+	# close the communication with the PostgreSQL
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+            print('Database connection closed.')
+
+def update_teams(t):
+    if 'id' in t:
+        if len(connect("select * from teams where id = "+t['id'])) == 0:
+            print(connect('insert into teams (id, name, coach) values (' + t['id']+',\''+t['name']+'\',\''+t['coach']+ '\') RETURNING *'))
+            
+        # Bad example. exposed to SQL injection, use query parameter instead
+        if 'name' in t and 'coach' in t:
+            body = connect("update teams set name = \'"+ t['name'] + "\', coach = \'"+ t['coach'] +"\' where id = "+t['id']+' RETURNING *')
+        elif 'name' in t:
+            body = connect("update teams set name = \'"+ t['name'] + "\' where id = "+t['id']+' RETURNING *')
+        elif 'coach' in t:
+            body = connect("update teams set coach = \'"+t['coach']+"\' where id = "+t['id']+' RETURNING *')
+            
+        if 'score' in t:
+            connect("update standings set score = \'"+t['score']+"\' where team_id = "+t['id']+' RETURNING *')
+            connect_log(t['id'], t['score'], t[date])
+            
+    return body
 
 def lambda_handler(event, context):
     # TODO implement
     # https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway-tutorial.html
+    
+    # consider using below instead
+    # https://stackoverflow.com/questions/31329958/how-to-pass-a-querystring-or-route-parameter-to-aws-lambda-from-amazon-api-gatew
     print('event: ',event)
     print('context: ',context)
     op = event['operation']
@@ -58,13 +108,7 @@ def lambda_handler(event, context):
             print('teams:', teams)
             for t in teams:
                 print('t:',t)
-                if 'id' in t:
-                    #body = connect("insert into teams (name, coach) values (\'groundhog\',\'moley\') RETURNING *")
-                    #break
-                    if 'name' in t:
-                        body = connect("update teams set name = \'"+ t['name'] + "\' where id = "+t['id']+' RETURNING *')
-                    if 'coach' in t:
-                        body = connect("update teams set coach = \'"+t['coach']+"\' where id = "+t['id']+' RETURNING *')
+                body = update_teams(t)
     return {
         'statusCode': 200,
         #'body': json.dumps('Hello from Lambda!')
